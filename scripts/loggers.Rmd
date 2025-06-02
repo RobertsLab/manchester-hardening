@@ -1,0 +1,92 @@
+---
+title: "Viewing logger files"
+author: "Ariana S Huffmyer"
+date: "2025"
+output: 
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 6
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+This script reads and plots environmental data from Hobo loggers. 
+
+# Set Up    
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(stringr)
+library(readxl)
+library(purrr)
+library(lubridate)
+library(ggplot2)
+library(seacarb)
+library(broom)
+library(cowplot)
+```
+
+# Manchester loggers 
+
+## Read in files 
+
+Read in Hobo Tidbit files  
+```{r}
+tidbit.files <- list.files(path="data/loggers", pattern="*.xlsx", full.names=TRUE)
+
+#will need to change to HST time 
+tidbits <- setNames(tidbit.files, tidbit.files) %>%
+    map_dfr(read_xlsx, .id = "logger") %>%
+    rename(DateTime=`Date-Time (PDT)`, temp.C=`Temperature , °C`)%>%
+    select(!`#`)%>%
+    select(logger, DateTime, temp.C)%>%
+    mutate(logger=sub(".*/", "", logger))%>% #remove the path name
+    mutate(logger=sub("_.*", "", logger))%>% #keep only the serial number 
+    filter(!temp.C=="NA")
+
+tidbits$DateTime<-as.POSIXct(tidbits$DateTime, format="%m/%d/%Y %H:%M:%S")
+
+```
+
+List the logger serial numbers in this dataframe.  
+```{r}
+levels(as.factor(tidbits$logger))
+```
+
+There are 4 loggers as expected.  
+
+Add in group information. 
+
+```{r}
+metadata<-read_xlsx(path="data/loggers/logger_metadata.xlsx")%>%mutate(logger=as.character(logger))
+
+tidbits <- left_join(tidbits, metadata)
+
+levels(as.factor(tidbits$tank))
+```
+
+Group information is now added.  
+
+## Plot data 
+
+Experiment tanks 
+```{r}
+temp_plot<-tidbits%>%
+  
+  ggplot(aes(x=DateTime, y=temp.C, colour=treatment))+
+  geom_point(alpha=0.7)+
+  ylab("Temperature (°C)")+
+  scale_colour_manual(values=c("darkblue", "darkred"))+
+  xlab("Date")+
+  ggtitle("Manchester")+
+  ylim(14,26)+
+  theme_classic(); temp_plot
+
+ggsave(temp_plot, filename="figures/loggers/Manchester_loggers.png", width=8, height=4)
+```
