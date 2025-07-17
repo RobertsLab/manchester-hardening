@@ -75,9 +75,10 @@ Group information is now added.
 
 ## Plot data 
 
-Experiment tanks 
+Experiment tanks during hardening 
 ```{r}
 temp_plot<-tidbits%>%
+  filter(DateTime < as.POSIXct("2025-06-16 04:00:00"))%>%
   
   ggplot(aes(x=DateTime, y=temp.C, colour=treatment))+
   geom_point(alpha=0.7)+
@@ -85,8 +86,25 @@ temp_plot<-tidbits%>%
   scale_colour_manual(values=c("darkblue", "darkred"))+
   xlab("Date")+
   ggtitle("Manchester")+
-  ylim(14,26)+
+  ylim(10,26)+
   theme_classic(); temp_plot
 
-ggsave(temp_plot, filename="figures/loggers/Manchester_loggers.png", width=8, height=4)
+ggsave(temp_plot, filename="figures/loggers/Manchester_loggers_experiment.png", width=8, height=4)
 ```
+
+Field cages
+```{r}
+temp_plot2<-tidbits%>%
+  filter(DateTime > as.POSIXct("2025-06-16 07:00:00"))%>%
+  
+  ggplot(aes(x=DateTime, y=temp.C, colour=field_tag))+
+  geom_point(alpha=0.7)+
+  ylab("Temperature (°C)")+
+  xlab("Date")+
+  ggtitle("Manchester")+
+  ylim(10,26)+
+  theme_classic(); temp_plot2
+
+ggsave(temp_plot2, filename="figures/loggers/Manchester_loggers_field.png", width=8, height=4)
+```
+
