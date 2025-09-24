@@ -1,0 +1,106 @@
+---
+title: "Viewing logger files"
+author: "Ariana S Huffmyer"
+date: "2025"
+output: 
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 6
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+This script reads and plots environmental data from Hobo loggers. 
+
+# Set Up    
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(stringr)
+library(readxl)
+library(purrr)
+library(lubridate)
+library(ggplot2)
+library(seacarb)
+library(broom)
+library(cowplot)
+library(lme4)
+library(lmerTest)
+```
+
+# Mortality assessments
+
+## Read in files 
+
+```{r}
+data<-read_xlsx("data/mortality.xlsx")%>%select(!notes)
+
+metadata<-read_xlsx("data/metadata/experiment_metadata.xlsx")
+
+data<-left_join(data, metadata)
+```
+
+## Calculate mortality 
+
+```{r}
+data$mortality<-(data$dead/data$total)*100
+```
+
+## Plot mortality by treatment and family 
+
+```{r}
+plot<-data%>%
+  
+  ggplot(aes(x=family, y=mortality, color=treatment))+
+  geom_boxplot()+
+  geom_point(position=position_dodge(0.75))+
+  scale_color_manual(values=c("blue", "red"))+
+  ylab("Mortality (%)")+
+  xlab("Family")+
+  theme_classic(); plot
+
+ggsave(plot, filename="figures/mortality/family_mortality.png", width=8, height=4)
+```
+
+```{r}
+plot<-data%>%
+  
+  ggplot(aes(x=treatment, y=mortality, color=treatment))+
+  geom_violin()+
+  geom_point(position=position_dodge(0.75))+
+  scale_color_manual(values=c("blue", "red"))+
+  ylab("Mortality (%)")+
+  xlab("Treatment")+
+  theme_classic(); plot
+
+ggsave(plot, filename="figures/mortality/treatment_mortality.png", width=4, height=4)
+```
+
+## Run model 
+
+```{r}
+model<-data%>%
+  
+  aov(mortality~treatment*family, data=.)
+
+summary(model)
+```
+
+No significant effects. 
+
+```{r}
+model2<-data%>%
+  
+  lmer(mortality~treatment*family + (1|cage) + (1|tank), data=.)
+
+anova(model2)
+```
+
+
+

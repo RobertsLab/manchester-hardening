@@ -97,12 +97,13 @@ Field cages
 temp_plot2<-tidbits%>%
   filter(DateTime > as.POSIXct("2025-06-16 07:00:00"))%>%
   
-  ggplot(aes(x=DateTime, y=temp.C, colour=field_tag))+
-  geom_point(alpha=0.7)+
+  ggplot(aes(x=DateTime, y=temp.C))+
+  geom_point(alpha=0.2, colour="darkgray")+
   ylab("Temperature (°C)")+
   xlab("Date")+
   ggtitle("Manchester")+
-  ylim(10,26)+
+  ylim(10,20)+
+  geom_smooth(aes(group=1), method="loess", colour="black", se=FALSE)+
   theme_classic(); temp_plot2
 
 ggsave(temp_plot2, filename="figures/loggers/Manchester_loggers_field.png", width=8, height=4)
