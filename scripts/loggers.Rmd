@@ -43,7 +43,7 @@ tidbit.files <- list.files(path="data/loggers", pattern="*.xlsx", full.names=TRU
 #will need to change to HST time 
 tidbits <- setNames(tidbit.files, tidbit.files) %>%
     map_dfr(read_xlsx, .id = "logger") %>%
-    rename(DateTime=`Date-Time (PDT)`, temp.C=`Temperature , °C`)%>%
+    rename(DateTime=`Date-Time (PDT/PST)`, temp.C=`Temperature , °C`)%>%
     select(!`#`)%>%
     select(logger, DateTime, temp.C)%>%
     mutate(logger=sub(".*/", "", logger))%>% #remove the path name
@@ -102,7 +102,7 @@ temp_plot2<-tidbits%>%
   ylab("Temperature (°C)")+
   xlab("Date")+
   ggtitle("Manchester")+
-  ylim(10,20)+
+  #ylim(10,20)+
   geom_smooth(aes(group=1), method="loess", colour="black", se=FALSE)+
   theme_classic(); temp_plot2
 
