@@ -43,7 +43,7 @@ tidbit.files <- list.files(path="data/loggers", pattern="*.xlsx", full.names=TRU
 #will need to change to HST time 
 tidbits <- setNames(tidbit.files, tidbit.files) %>%
     map_dfr(read_xlsx, .id = "logger") %>%
-    rename(DateTime=`Date-Time (PDT/PST)`, temp.C=`Temperature , °C`)%>%
+    rename(DateTime=`Date-Time (PDT)`, temp.C=`Temperature , °C`)%>%
     select(!`#`)%>%
     select(logger, DateTime, temp.C)%>%
     mutate(logger=sub(".*/", "", logger))%>% #remove the path name
