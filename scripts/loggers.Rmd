@@ -104,8 +104,8 @@ temp_plot2<-tidbits%>%
   ggtitle("Manchester")+
   #ylim(10,20)+
   geom_smooth(aes(group=1), method="loess", colour="black", se=FALSE)+
-  theme_classic(); temp_plot2
+  theme_classic()#; temp_plot2
 
-ggsave(temp_plot2, filename="figures/loggers/Manchester_loggers_field.png", width=6, height=4)
+ggsave(temp_plot2, filename="figures/loggers/Manchester_loggers_field.png", width=10, height=4)
 ```
 
