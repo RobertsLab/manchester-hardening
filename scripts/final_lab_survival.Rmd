@@ -1,0 +1,146 @@
+---
+title: Final lab survival analysis
+author: "AS Huffmyer"
+date: '2026'
+output:
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 6
+    toc_float: yes
+  pdf_document:
+    keep_tex: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+# Set up 
+
+Set up workspace, set options, and load required packages.    
+```{r}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+Load libraries. 
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(survival)
+library(readxl)
+library(ggsurvfit)
+library(gtsummary)
+library(cardx)
+library(cowplot)
+```
+
+# Read in data 
+
+Read in data. 
+```{r}
+data<-read_csv("data/final-lab-testing/final_lab_survival.csv")%>%
+  mutate(time=as.numeric(time))
+```
+
+Read in metadata. 
+```{r}
+metadata<-read_csv("data/final-lab-testing/bag_metadata.csv")%>%select(!c(field_tags,live, dead))
+```
+
+Merge in metadata. 
+```{r}
+data<-left_join(data, metadata)
+head(data)
+```
+
+"treatment" here refers to the original hardening treatment. All oysters were run in the survival assay at 34-36°C.  
+
+## Generate Kaplan Meier survival curves
+
+```{r}
+s1 <- survival::survfit(Surv(time, status) ~ treatment+family, data = data)
+str(s1)
+```
+
+Plot the survival function
+```{r}
+ggsurvfit::survfit2(Surv(time, status) ~ treatment+family, data = data) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability"
+  )
+```
+
+Estimate survival at 24 hours. 
+```{r}
+summary(survival::survfit(Surv(time, status) ~ treatment+family, data = data), times = 24)
+```
+
+Use a log rank model to determine statistical differences in curves. 
+```{r}
+survival::survdiff(Surv(time, status) ~ treatment+family, data = data)
+```
+
+Analyze again with a Cox proportional hazards model. 
+```{r}
+survival::coxph(Surv(time, status) ~ treatment*family, data = data)
+
+survival::coxph(Surv(time, status) ~ treatment*family, data = data) %>% 
+  tbl_regression(exp = TRUE) 
+```
+
+## Generate plots 
+ 
+Set theme. 
+```{r}
+my_theme<-theme_classic()+
+  theme(
+    axis.title.y = element_text(size = 14, color = "black"),
+    axis.text.y = element_text(size=12, color = "black"),
+    axis.text.x = element_text(size=12, color = "black"),
+    axis.title.x =element_text(size = 14, color = "black"),
+    legend.position = "none")
+```
+
+```{r}
+plot1<-ggsurvfit::survfit2(Surv(time, status) ~ treatment, data = data) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  #scale_linetype_manual(values=c("solid", "dashed"))+
+  scale_colour_manual(values=c("darkgray", "orange"))+
+  theme(legend.position="right");plot1
+```
+
+By family
+```{r}
+plot2<-ggsurvfit::survfit2(Surv(time, status) ~ family, data = data) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  theme(legend.position="right");plot2
+```
+
+By group
+```{r}
+plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  theme(legend.position="right");plot3
+```
