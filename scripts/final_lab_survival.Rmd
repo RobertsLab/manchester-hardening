@@ -144,3 +144,4 @@ plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data) %
   my_theme+
   theme(legend.position="right");plot3
 ```
+
