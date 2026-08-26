@@ -54,7 +54,7 @@ head(data)
 
 "treatment" here refers to the original hardening treatment. All oysters were run in the survival assay at 34-36°C.  
 
-## Generate Kaplan Meier survival curves
+# Generate survival curves
 
 ```{r}
 s1 <- survival::survfit(Surv(time, status) ~ treatment+family, data = data)
@@ -83,9 +83,9 @@ survival::survdiff(Surv(time, status) ~ treatment+family, data = data)
 
 Analyze again with a Cox proportional hazards model. 
 ```{r}
-survival::coxph(Surv(time, status) ~ treatment*family, data = data)
+survival::coxph(Surv(time, status) ~ treatment*family+round, data = data)
 
-survival::coxph(Surv(time, status) ~ treatment*family, data = data) %>% 
+survival::coxph(Surv(time, status) ~ treatment*family+round, data = data) %>% 
   tbl_regression(exp = TRUE) 
 ```
 
@@ -102,6 +102,41 @@ my_theme<-theme_classic()+
     legend.position = "none")
 ```
 
+### Treatment 
+
+Round 1
+```{r}
+plot1<-ggsurvfit::survfit2(Surv(time, status) ~ treatment, data = data%>%filter(round=="round1")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  #scale_linetype_manual(values=c("solid", "dashed"))+
+  scale_colour_manual(values=c("darkgray", "orange"))+
+  theme(legend.position="right");plot1
+```
+
+Round 2
+```{r}
+plot1<-ggsurvfit::survfit2(Surv(time, status) ~ treatment, data = data%>%filter(round=="round2")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  #scale_linetype_manual(values=c("solid", "dashed"))+
+  scale_colour_manual(values=c("darkgray", "orange"))+
+  theme(legend.position="right");plot1
+```
+
+All rounds
 ```{r}
 plot1<-ggsurvfit::survfit2(Surv(time, status) ~ treatment, data = data) %>% 
   ggsurvfit::ggsurvfit() +
@@ -117,7 +152,37 @@ plot1<-ggsurvfit::survfit2(Surv(time, status) ~ treatment, data = data) %>%
   theme(legend.position="right");plot1
 ```
 
-By family
+### Family 
+
+Round 1
+```{r}
+plot2<-ggsurvfit::survfit2(Surv(time, status) ~ family, data = data%>%filter(round=="round1")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  theme(legend.position="right");plot2
+```
+
+Round 2
+```{r}
+plot2<-ggsurvfit::survfit2(Surv(time, status) ~ family, data = data%>%filter(round=="round2")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  theme(legend.position="right");plot2
+```
+
+All rounds
 ```{r}
 plot2<-ggsurvfit::survfit2(Surv(time, status) ~ family, data = data) %>% 
   ggsurvfit::ggsurvfit() +
@@ -131,7 +196,37 @@ plot2<-ggsurvfit::survfit2(Surv(time, status) ~ family, data = data) %>%
   theme(legend.position="right");plot2
 ```
 
-By group
+### Treatment group x family 
+
+Round1
+```{r}
+plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data%>%filter(round=="round1")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  theme(legend.position="right");plot3
+```
+
+Round2
+```{r}
+plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data%>%filter(round=="round2")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  theme(legend.position="right");plot3
+```
+
+All rounds
 ```{r}
 plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data) %>% 
   ggsurvfit::ggsurvfit() +
@@ -144,4 +239,5 @@ plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data) %
   my_theme+
   theme(legend.position="right");plot3
 ```
+
 
