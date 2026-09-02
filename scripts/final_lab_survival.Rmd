@@ -73,7 +73,7 @@ ggsurvfit::survfit2(Surv(time, status) ~ treatment+family, data = data) %>%
 
 Estimate survival at 24 hours. 
 ```{r}
-summary(survival::survfit(Surv(time, status) ~ treatment+family, data = data), times = 24)
+summary(survival::survfit(Surv(time, status) ~ treatment+family, data = data), times = 48)
 ```
 
 Use a log rank model to determine statistical differences in curves. 
@@ -136,6 +136,22 @@ plot1<-ggsurvfit::survfit2(Surv(time, status) ~ treatment, data = data%>%filter(
   theme(legend.position="right");plot1
 ```
 
+Round 3
+```{r}
+plot1<-ggsurvfit::survfit2(Surv(time, status) ~ treatment, data = data%>%filter(round=="round3")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  #scale_linetype_manual(values=c("solid", "dashed"))+
+  scale_colour_manual(values=c("darkgray", "orange"))+
+  theme(legend.position="right");plot1
+```
+
 All rounds
 ```{r}
 plot1<-ggsurvfit::survfit2(Surv(time, status) ~ treatment, data = data) %>% 
@@ -182,6 +198,20 @@ plot2<-ggsurvfit::survfit2(Surv(time, status) ~ family, data = data%>%filter(rou
   theme(legend.position="right");plot2
 ```
 
+Round 3
+```{r}
+plot2<-ggsurvfit::survfit2(Surv(time, status) ~ family, data = data%>%filter(round=="round3")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  theme(legend.position="right");plot2
+```
+
 All rounds
 ```{r}
 plot2<-ggsurvfit::survfit2(Surv(time, status) ~ family, data = data) %>% 
@@ -215,6 +245,20 @@ plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data%>%
 Round2
 ```{r}
 plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data%>%filter(round=="round2")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  theme(legend.position="right");plot3
+```
+
+Round3
+```{r}
+plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data%>%filter(round=="round3")) %>% 
   ggsurvfit::ggsurvfit() +
   labs(
     x = "Hours",
