@@ -54,6 +54,30 @@ head(data)
 
 "treatment" here refers to the original hardening treatment. All oysters were run in the survival assay at 34-36°C.  
 
+
+# Plot temperatures 
+
+Plot temperatures for each round 
+
+```{r}
+temps<-read_csv("data/final-lab-testing/temperature.csv")
+```
+
+Plot faceted by round. 
+
+```{r}
+plot<-temps%>%
+  
+  ggplot(aes(x=time, y=temp.C, color=round))+
+  facet_wrap(~round)+
+  geom_point()+
+  stat_summary(fun = mean, geom = "line", linewidth = 1)+
+  my_theme+
+  theme(legend.position="right");plot
+```
+
+Round 2 had a temperature control issue - we will likely need to exclude this round.  
+
 # Generate survival curves
 
 ```{r}
@@ -327,26 +351,5 @@ plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data) %
   my_theme+
   theme(legend.position="right");plot3
 
-```
-
-# Plot temperatures 
-
-Plot temperatures for each round 
-
-```{r}
-temps<-read_csv("data/final-lab-testing/temperature.csv")
-```
-
-Plot faceted by round. 
-
-```{r}
-plot<-temps%>%
-  
-  ggplot(aes(x=time, y=temp.C, color=round))+
-  facet_wrap(~round)+
-  geom_point()+
-  stat_summary(fun = mean, geom = "line", linewidth = 1)+
-  my_theme+
-  theme(legend.position="right");plot
 ```
 
