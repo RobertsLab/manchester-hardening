@@ -152,6 +152,22 @@ plot1<-ggsurvfit::survfit2(Surv(time, status) ~ treatment, data = data%>%filter(
   theme(legend.position="right");plot1
 ```
 
+Round 4
+```{r}
+plot1<-ggsurvfit::survfit2(Surv(time, status) ~ treatment, data = data%>%filter(round=="round4")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  #scale_linetype_manual(values=c("solid", "dashed"))+
+  scale_colour_manual(values=c("darkgray", "orange"))+
+  theme(legend.position="right");plot1
+```
+
 All rounds
 ```{r}
 plot1<-ggsurvfit::survfit2(Surv(time, status) ~ treatment, data = data) %>% 
@@ -201,6 +217,20 @@ plot2<-ggsurvfit::survfit2(Surv(time, status) ~ family, data = data%>%filter(rou
 Round 3
 ```{r}
 plot2<-ggsurvfit::survfit2(Surv(time, status) ~ family, data = data%>%filter(round=="round3")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  theme(legend.position="right");plot2
+```
+
+Round 4
+```{r}
+plot2<-ggsurvfit::survfit2(Surv(time, status) ~ family, data = data%>%filter(round=="round4")) %>% 
   ggsurvfit::ggsurvfit() +
   labs(
     x = "Hours",
@@ -270,6 +300,20 @@ plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data%>%
   theme(legend.position="right");plot3
 ```
 
+Round4
+```{r}
+plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data%>%filter(round=="round4")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  theme(legend.position="right");plot3
+```
+
 All rounds
 ```{r}
 plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data) %>% 
@@ -282,6 +326,27 @@ plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data) %
   ylim(0,1)+
   my_theme+
   theme(legend.position="right");plot3
+
 ```
 
+# Plot temperatures 
+
+Plot temperatures for each round 
+
+```{r}
+temps<-read_csv("data/final-lab-testing/temperature.csv")
+```
+
+Plot faceted by round. 
+
+```{r}
+plot<-temps%>%
+  
+  ggplot(aes(x=time, y=temp.C, color=round))+
+  facet_wrap(~round)+
+  geom_point()+
+  stat_summary(fun = mean, geom = "line", linewidth = 1)+
+  my_theme+
+  theme(legend.position="right");plot
+```
 
