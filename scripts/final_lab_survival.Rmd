@@ -31,6 +31,10 @@ library(ggsurvfit)
 library(gtsummary)
 library(cardx)
 library(cowplot)
+library(lme4)
+library(lmerTest)
+library(car)
+library(emmeans)
 ```
 
 # Read in data 
@@ -368,3 +372,61 @@ plot<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data%>%f
   theme(legend.position="right");plot
 ```
 
+# Run binomial logistic models 
+
+Run a binomial logistic model to account for variation between rounds. Include round and oyster size (length in mm) as random effects. 
+
+0 = alive
+1 = mortality 
+
+```{r}
+surv_model<-glmer(status ~ time * family * treatment + (1|round) + (1|length.mm), family = binomial(link = "logit"), data=data)
+
+summary(surv_model)
+Anova(surv_model)
+
+emm<-emmeans(surv_model, ~treatment|family)
+pairs(emm)
+
+emm<-emmeans(surv_model, ~family)
+pairs(emm)
+```
+
+Generate predictive mortality plot. 
+
+```{r}
+# Generate predicted probabilities
+data$predicted_mortality <- predict(surv_model, type = "response")
+
+# Plot
+plot2<-ggplot(data, aes(x = time, y = predicted_mortality, color = treatment, fill = treatment, group=treatment)) +
+  facet_wrap(~family)+
+  geom_point(aes(y = status), alpha = 0.6, position = position_jitter(height = 0.03)) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE) +
+  scale_color_manual(values=c("cyan3", "coral"))+
+  labs(
+    title = "",
+    y = "Probability of Mortality",
+  ) +
+  theme_classic();plot2
+
+ggsave(plot2, filename="figures/final-lab-survival/survival_families.png", width=8, height=6)
+```
+
+Family 153: Control died earlier (p=0.003)
+Family 137: Control died earlier (p=0.005)
+Family 116: Treated died a tiny bit earlier (p=0.020) 
+
+```{r}
+# Plot
+plot2<-ggplot(data, aes(x = time, y = predicted_mortality, color = family, fill = family, group=family)) +
+  geom_point(aes(y = status), alpha = 0.6, position = position_jitter(height = 0.03)) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE) +
+  labs(
+    title = "",
+    y = "Probability of Mortality",
+  ) +
+  theme_classic();plot2
+
+ggsave(plot2, filename="figures/final-lab-survival/survival_all.png", width=6, height=4)
+```
