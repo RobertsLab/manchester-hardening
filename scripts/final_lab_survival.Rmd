@@ -353,3 +353,18 @@ plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data) %
 
 ```
 
+Plot family 164 specifically. 
+
+```{r}
+plot<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data%>%filter(family=="YC24-164")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  theme(legend.position="right");plot
+```
+
