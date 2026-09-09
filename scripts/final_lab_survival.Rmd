@@ -425,7 +425,7 @@ Run a binomial logistic model to account for variation between rounds. Include r
 1 = mortality 
 
 ```{r}
-surv_model<-glmer(status ~ time * family * treatment + (1|round), family = binomial(link = "logit"), data=data)
+surv_model<-glmer(status ~ time * family * treatment + (1|round) + (1|length.mm), family = binomial(link = "logit"), data=data)
 
 summary(surv_model)
 Anova(surv_model)
@@ -434,8 +434,23 @@ emm<-emmeans(surv_model, ~treatment|family)
 pairs(emm)
 
 emm<-emmeans(surv_model, ~family)
-pairs(emm)
+multcomp::cld(emm)
 ```
+
+Evaluate random effects of round and length (mm). 
+```{r}
+# Plot the random effects
+ranef(surv_model)
+
+library(sjPlot)
+
+plot_model(surv_model, type = "re")
+
+library(performance)
+r2(surv_model)
+```
+
+No clear trend of length affecting mortality. Rounds 2 and 4 had lower mortality. 
 
 Generate predictive mortality plot. 
 
@@ -545,7 +560,7 @@ knitr::kable(
 )
 ```  
 
-Family 163: Treated died earlier (p=0.037) - LT50 is 2.8 hrs less in treated group
-Family 153: Treated died later (p=0.0009) - LT50 is 6 hours more in treated group
-Family 137: Treated died later (p=0.004) - LT50 is 6.3 hours more in treated group
-Family 116: Treated died earlier (p=0.003) - LT50 is 5.4 hours less in treated group 
+Family 163: Treated died earlier (p=0.030) - LT50 is 4.5 hrs less in treated group
+Family 153: Treated died later (p=0.002) - LT50 is 6.1 hours more in treated group
+Family 137: Treated died later (p=0.001) - LT50 is 8.5 hours more in treated group
+Family 116: Treated died earlier (p=0.003) - LT50 is 6.5 hours less in treated group 
