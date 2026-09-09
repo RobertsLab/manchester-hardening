@@ -58,7 +58,6 @@ head(data)
 
 "treatment" here refers to the original hardening treatment. All oysters were run in the survival assay at 34-36°C.  
 
-
 # Plot temperatures 
 
 Plot temperatures for each round 
@@ -67,20 +66,33 @@ Plot temperatures for each round
 temps<-read_csv("data/final-lab-testing/temperature.csv")
 ```
 
+Set theme. 
+```{r}
+my_theme<-theme_classic()+
+  theme(
+    axis.title.y = element_text(size = 14, color = "black"),
+    axis.text.y = element_text(size=12, color = "black"),
+    axis.text.x = element_text(size=12, color = "black"),
+    axis.title.x =element_text(size = 14, color = "black"),
+    legend.position = "none")
+```
+
 Plot faceted by round. 
 
 ```{r}
 plot<-temps%>%
   
   ggplot(aes(x=time, y=temp.C, color=round))+
-  facet_wrap(~round)+
+  facet_grid(~round)+
   geom_point()+
   stat_summary(fun = mean, geom = "line", linewidth = 1)+
   my_theme+
   theme(legend.position="right");plot
+
+ggsave(filename="figures/final-lab-survival/temperature_rounds.png", width=10, height=5)
 ```
 
-Round 2 had a temperature control issue - we will likely need to exclude this round.  
+Round 2 had a temperature control issue - we will likely need to exclude this round. Round 1 was in a waterbath so temperatures started warm. Rounds 3-5 were in an incubator and therefore had a warm up time once the trial started.  
 
 # Generate survival curves
 
@@ -99,7 +111,7 @@ ggsurvfit::survfit2(Surv(time, status) ~ treatment+family, data = data) %>%
   )
 ```
 
-Estimate survival at 24 hours. 
+Estimate survival at 48 hours. 
 ```{r}
 summary(survival::survfit(Surv(time, status) ~ treatment+family, data = data), times = 48)
 ```
@@ -118,17 +130,6 @@ survival::coxph(Surv(time, status) ~ treatment*family+round, data = data) %>%
 ```
 
 ## Generate plots 
- 
-Set theme. 
-```{r}
-my_theme<-theme_classic()+
-  theme(
-    axis.title.y = element_text(size = 14, color = "black"),
-    axis.text.y = element_text(size=12, color = "black"),
-    axis.text.x = element_text(size=12, color = "black"),
-    axis.title.x =element_text(size = 14, color = "black"),
-    legend.position = "none")
-```
 
 ### Treatment 
 
@@ -183,6 +184,22 @@ plot1<-ggsurvfit::survfit2(Surv(time, status) ~ treatment, data = data%>%filter(
 Round 4
 ```{r}
 plot1<-ggsurvfit::survfit2(Surv(time, status) ~ treatment, data = data%>%filter(round=="round4")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  #scale_linetype_manual(values=c("solid", "dashed"))+
+  scale_colour_manual(values=c("darkgray", "orange"))+
+  theme(legend.position="right");plot1
+```
+
+Round 5
+```{r}
+plot1<-ggsurvfit::survfit2(Surv(time, status) ~ treatment, data = data%>%filter(round=="round5")) %>% 
   ggsurvfit::ggsurvfit() +
   labs(
     x = "Hours",
@@ -270,6 +287,20 @@ plot2<-ggsurvfit::survfit2(Surv(time, status) ~ family, data = data%>%filter(rou
   theme(legend.position="right");plot2
 ```
 
+Round 5
+```{r}
+plot2<-ggsurvfit::survfit2(Surv(time, status) ~ family, data = data%>%filter(round=="round5")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  theme(legend.position="right");plot2
+```
+
 All rounds
 ```{r}
 plot2<-ggsurvfit::survfit2(Surv(time, status) ~ family, data = data) %>% 
@@ -342,6 +373,20 @@ plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data%>%
   theme(legend.position="right");plot3
 ```
 
+Round5
+```{r}
+plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data%>%filter(round=="round5")) %>% 
+  ggsurvfit::ggsurvfit() +
+  labs(
+    x = "Hours",
+    y = "Survival probability",
+    title=""
+  )+
+  ylim(0,1)+
+  my_theme+
+  theme(legend.position="right");plot3
+```
+
 All rounds
 ```{r}
 plot3<-ggsurvfit::survfit2(Surv(time, status) ~ family+treatment, data = data) %>% 
@@ -380,7 +425,7 @@ Run a binomial logistic model to account for variation between rounds. Include r
 1 = mortality 
 
 ```{r}
-surv_model<-glmer(status ~ time * family * treatment + (1|round) + (1|length.mm), family = binomial(link = "logit"), data=data)
+surv_model<-glmer(status ~ time * family * treatment + (1|round), family = binomial(link = "logit"), data=data)
 
 summary(surv_model)
 Anova(surv_model)
@@ -413,10 +458,6 @@ plot2<-ggplot(data, aes(x = time, y = predicted_mortality, color = treatment, fi
 ggsave(plot2, filename="figures/final-lab-survival/survival_families.png", width=8, height=6)
 ```
 
-Family 153: Control died earlier (p=0.003)
-Family 137: Control died earlier (p=0.005)
-Family 116: Treated died a tiny bit earlier (p=0.020) 
-
 ```{r}
 # Plot
 plot2<-ggplot(data, aes(x = time, y = predicted_mortality, color = family, fill = family, group=family)) +
@@ -430,3 +471,81 @@ plot2<-ggplot(data, aes(x = time, y = predicted_mortality, color = family, fill 
 
 ggsave(plot2, filename="figures/final-lab-survival/survival_all.png", width=6, height=4)
 ```
+
+There is a spread of tolerance between families.
+
+# LT50 Analysis
+
+Calculate the time of 50% mortality (LT50) for each family × treatment combination from the binomial model. LT50 is solved by finding where the model's predicted probability of mortality = 0.5, using population-level predictions (random effects for round excluded via `re.form = NA`).
+
+```{r lt50-table}
+# Function to find LT50 for a given family and treatment using uniroot
+# re.form = NA excludes round-level random effects (population-level estimate)
+get_lt50 <- function(model, family_val, treatment_val, time_range = c(0, 300)) {
+  pred_fn <- function(t) {
+    newdata <- data.frame(
+      time      = t,
+      family    = family_val,
+      treatment = treatment_val
+    )
+    predict(model, newdata = newdata, type = "response", re.form = NA) - 0.5
+  }
+
+  # Verify the predicted curve actually crosses 0.5 within the search range
+  lo <- tryCatch(pred_fn(time_range[1]), error = function(e) NA_real_)
+  hi <- tryCatch(pred_fn(time_range[2]), error = function(e) NA_real_)
+  if (anyNA(c(lo, hi)) || sign(lo) == sign(hi)) return(NA_real_)
+
+  tryCatch(
+    uniroot(pred_fn, interval = time_range)$root,
+    error = function(e) NA_real_
+  )
+}
+```
+
+```{r}
+# Compute LT50 for every family × treatment combination
+lt50_results <- data %>%
+  distinct(family, treatment) %>%
+  rowwise() %>%
+  mutate(
+    LT50_hrs = get_lt50(surv_model, as.character(family), as.character(treatment))
+  ) %>%
+  ungroup()
+
+# Identify the non-control treatment label automatically
+treated_label <- setdiff(unique(data$treatment), "Control")
+
+# Pivot wide so control and treated LT50 sit side by side per family
+lt50_table <- lt50_results %>%
+  pivot_wider(names_from = treatment, values_from = LT50_hrs) %>%
+  rename(
+    LT50_control  = Control,
+    LT50_treated  = all_of(treated_label)
+  ) %>%
+  mutate(
+    LT50_control  = round(LT50_control,  1),
+    LT50_treated  = round(LT50_treated,  1),
+    # Positive = treated takes longer to reach 50% mortality (more tolerant)
+    Difference_hrs = round(LT50_treated - LT50_control, 1),
+    Direction = case_when(
+      is.na(Difference_hrs)   ~ "—",
+      Difference_hrs > 0      ~ "Treated more tolerant (+)",
+      Difference_hrs < 0      ~ "Treated less tolerant (−)",
+      TRUE                    ~ "No difference"
+    )
+  ) %>%
+  arrange(family)
+
+knitr::kable(
+  lt50_table,
+  caption = "LT50 (hours to 50% mortality) by family and treatment group",
+  col.names = c("Family", "LT50 Control (hrs)", "LT50 Treated (hrs)",
+                "Difference (hrs)", "Direction")
+)
+```  
+
+Family 163: Treated died earlier (p=0.037) - LT50 is 2.8 hrs less in treated group
+Family 153: Treated died later (p=0.0009) - LT50 is 6 hours more in treated group
+Family 137: Treated died later (p=0.004) - LT50 is 6.3 hours more in treated group
+Family 116: Treated died earlier (p=0.003) - LT50 is 5.4 hours less in treated group 
