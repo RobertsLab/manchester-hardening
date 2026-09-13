@@ -560,7 +560,137 @@ knitr::kable(
 )
 ```  
 
-Family 163: Treated died earlier (p=0.030) - LT50 is 4.5 hrs less in treated group
-Family 153: Treated died later (p=0.002) - LT50 is 6.1 hours more in treated group
-Family 137: Treated died later (p=0.001) - LT50 is 8.5 hours more in treated group
-Family 116: Treated died earlier (p=0.003) - LT50 is 6.5 hours less in treated group 
+Family 163: Treated died earlier (p=0.030) - LT50 is -2.7 hrs less in treated group
+Family 153: Treated died later (p=0.002) - LT50 is 3.5 hours more in treated group
+Family 137: Treated died later (p=0.001) - LT50 is 5.0 hours more in treated group
+Family 116: Treated died earlier (p=0.003) - LT50 is 5.4 hours less in treated group
+
+# Tolerance vs. treatment responsiveness
+
+Plot family average LT50 with the difference between control and treated LT50 for that family 
+
+```{r lt50-table}
+# Function to find the marginal LT50 for a family, averaged over treatment groups.
+#
+# WHY: surv_model includes treatment as a fixed effect, so predict() always
+# requires treatment in newdata. To get a family-level LT50 that is not tied
+# to either treatment group, we predict for every treatment level at each time
+# point and average those probabilities before solving for p = 0.5.
+# This gives the marginal (treatment-averaged) LT50 for the family.
+#
+# re.form = NA excludes round-level random effects (population-level estimate).
+get_lt50_family <- function(model, family_val, treatments,
+                            time_range = c(0, 300)) {
+  pred_fn <- function(t) {
+    # Predict mortality probability for each treatment, then average
+    preds <- sapply(treatments, function(trt) {
+      newdata <- data.frame(time = t, family = family_val, treatment = trt)
+      predict(model, newdata = newdata, type = "response", re.form = NA)
+    })
+    mean(preds) - 0.5   # uniroot finds where this crosses zero
+  }
+
+  lo <- tryCatch(pred_fn(time_range[1]), error = function(e) NA_real_)
+  hi <- tryCatch(pred_fn(time_range[2]), error = function(e) NA_real_)
+  if (anyNA(c(lo, hi)) || sign(lo) == sign(hi)) return(NA_real_)
+
+  tryCatch(
+    uniroot(pred_fn, interval = time_range)$root,
+    error = function(e) NA_real_
+  )
+}
+```
+
+```{r}
+# Marginal LT50 per family (averaged over both treatment groups)
+all_treatments <- unique(data$treatment)
+
+lt50_results_all <- data %>%
+  distinct(family) %>%
+  rowwise() %>%
+  mutate(
+    LT50_hrs = get_lt50_family(surv_model, as.character(family),
+                               treatments = all_treatments)
+  ) %>%
+  ungroup()%>%
+  arrange(LT50_hrs)
+
+knitr::kable(
+  lt50_results_all,
+  caption = "LT50 (hours to 50% mortality) by family group",
+  col.names = c("Family", "LT50 (hrs)")
+)
+```
+
+Plot marginal family LT50 (x) against the within-family treatment difference (y).
+
+```{r tolerance-vs-responsiveness}
+# Join marginal family LT50 with the per-treatment difference from lt50_table
+tol_resp_data <- lt50_results_all %>%
+  rename(LT50_marginal = LT50_hrs) %>%
+  left_join(
+    lt50_table %>% select(family, Difference_hrs, Direction),
+    by = "family"
+  ) %>%
+  mutate(
+    effect = case_when(
+      Difference_hrs > 0 ~ "Treated more tolerant",
+      Difference_hrs < 0 ~ "Treated less tolerant",
+      TRUE               ~ "No difference"
+    )
+  ) %>%
+  arrange(LT50_marginal)
+
+tol_resp_plot <- ggplot(tol_resp_data,
+                        aes(x = LT50_marginal, y = Difference_hrs)) +
+
+  # Reference line: zero treatment effect
+  geom_hline(yintercept = 0, linetype = "dashed",
+             color = "gray50", linewidth = 0.8) +
+
+  # Linear trend across families (indicative with small n)
+  geom_smooth(method = "lm", se = TRUE,
+              color = "gray40", fill = "gray85", linewidth = 0.8) +
+
+  # One point per family
+  geom_point(aes(color = effect), size = 5) +
+
+  # Family labels offset above each point
+  geom_text(aes(label = family), vjust = -1.1,
+            size = 3.8, fontface = "bold") +
+
+  scale_color_manual(
+    values = c("Treated more tolerant" = "cyan3",
+               "Treated less tolerant" = "coral",
+               "No difference"         = "gray60"),
+    name = "Treatment effect"
+  ) +
+
+  labs(
+    x = "Marginal family LT50 (hrs)  ←  least tolerant · most tolerant  →",
+    y = "LT50 difference: treated − control (hrs)",
+    title = "Family baseline tolerance vs. hardening treatment responsiveness",
+    caption = "X-axis: treatment-averaged LT50 per family (marginal estimate from binomial model).\nY-axis: within-family difference in LT50 between treated and control groups.\nPoints above dashed line = hardening extended survival; below = hardening reduced survival."
+  ) +
+
+  theme_classic() +
+  theme(
+    axis.title      = element_text(size = 13),
+    axis.text       = element_text(size = 11),
+    legend.position = "bottom",
+    plot.caption    = element_text(size = 9, color = "gray40", hjust = 0)
+  )
+
+tol_resp_plot
+
+ggsave(tol_resp_plot,
+       filename = "figures/final-lab-survival/tolerance_vs_responsiveness.png",
+       width = 7, height = 5.5)
+```
+
+
+
+
+
+
+

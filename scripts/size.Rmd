@@ -91,7 +91,7 @@ plot1<-data%>%
   facet_wrap(~date, nrow=2)+
   geom_boxplot()+
   geom_point(position=position_dodge(0.75))+
-  scale_color_manual(values=c("blue", "red"))+
+  scale_color_manual(values=c("cyan3", "coral"))+
   ylab("Volume (mm3)")+
   xlab("Family")+
   theme_classic(); plot1
@@ -108,7 +108,7 @@ plot2<-data%>%
   ggplot(aes(x=family, y=volume.mm3, color=treatment))+
   geom_boxplot()+
   geom_point(position=position_dodge(0.75))+
-  scale_color_manual(values=c("blue", "red"))+
+  scale_color_manual(values=c("cyan3", "coral"))+
   ylab("Volume (mm3)")+
   xlab("Family")+
   theme_classic(); plot2
@@ -142,7 +142,7 @@ plot1<-data%>%
   geom_boxplot()+
   geom_point(position=position_dodge(0.75))+
   geom_smooth(method="lm", aes(group=interaction(date, treatment)))+
-  scale_color_manual(values=c("blue", "red"))+
+  scale_color_manual(values=c("cyan3", "coral"))+
   ylab("Volume (mm3)")+
   xlab("Date")+
   theme_classic(); plot1
@@ -160,6 +160,7 @@ model<-data%>%
   
   lmer(volume.mm3 ~ date * family * treatment + (1|tag) + (1|cage), data=.)
 
+summary(model)
 anova(model)
 
 library(emmeans)
