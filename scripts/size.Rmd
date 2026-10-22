@@ -12,7 +12,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-This script analyzes oyster size. 
+This script analyzes oyster size over time.   
 
 # Set Up    
 
@@ -36,12 +36,18 @@ library(lmerTest)
 
 # Read in files 
 
+Read in files to be reformatted. 
+```{r}
+#data<-read_csv("data/size/size_20260814.csv")%>%select(!site)%>%select(!image)%>%select(!notes)
+  
+#data<-data%>%pivot_wider(names_from="measurement", values_from="value.mm")
+
+#write_csv(data, file="data/size/size_20260814_alt.csv")
+```
+
 Read in data 
 ```{r}
-size1<-read_csv("data/size/size_initial.csv")%>%select(!notes)%>%select(!initials)
-size2<-read_csv("data/size/size_20250923.csv")%>%select(!notes)%>%select(!initials)%>%
-  mutate(length.mm=length.mm*10, 
-         width.mm=width.mm*10)
+data<-read_csv("data/size/growth.csv")%>%select(!notes)%>%select(!initials)
 
 metadata<-read_xlsx("data/metadata/experiment_metadata.xlsx")
 ```
@@ -49,12 +55,6 @@ metadata<-read_xlsx("data/metadata/experiment_metadata.xlsx")
 Join data together. 
 
 ```{r}
-dim(size1)
-dim(size2)
-
-data<-full_join(size1, size2)
-dim(data)
-
 data<-left_join(data, metadata)
 head(data)
 ```
@@ -76,7 +76,7 @@ View data.
 hist(data$volume.mm3)
 ```
 
-# Analyze final size
+# Analyze size over time
 
 ```{r}
 data<-data%>%
@@ -87,8 +87,8 @@ data<-data%>%
 ```{r}
 plot1<-data%>%
   
-  ggplot(aes(x=tag, y=volume.mm3, color=treatment))+
-  facet_wrap(~date, nrow=2)+
+  ggplot(aes(x=date, y=volume.mm3, color=treatment))+
+  facet_wrap(~tag, nrow=2)+
   geom_boxplot()+
   geom_point(position=position_dodge(0.75))+
   scale_color_manual(values=c("cyan3", "coral"))+
@@ -97,13 +97,13 @@ plot1<-data%>%
   theme_classic(); plot1
 ```
 
-We are missing photos of tags 76, 77, 78, and 79 (YC24-099). 
+We are missing photos of tags 76, 77, 78, and 79 (YC24-099) from the initial time point. 
 
-Analyze just final size. 
+Look at only final size. 
 
 ```{r}
 plot2<-data%>%
-  filter(date=="20250923")%>%
+  filter(date=="20260814")%>%
   
   ggplot(aes(x=family, y=volume.mm3, color=treatment))+
   geom_boxplot()+
@@ -120,7 +120,7 @@ Run a model.
 
 ```{r}
 model<-data%>%
-  filter(date=="20250923")%>%
+  filter(date=="20260814")%>%
   
   lmer(volume.mm3 ~ family * treatment + (1|tag) + (1|cage), data=.)
 
@@ -129,25 +129,24 @@ anova(model)
 
 Family is significant, treatment effects are not significant.  
 
-
-# Analyze growth rates
-
-This will exclude YC24-099 due to missing initial photos. 
+# Analyze growth 
 
 ```{r}
 plot1<-data%>%
   
-  ggplot(aes(x=treatment, y=volume.mm3, color=treatment, shape=date, group=interaction(date, treatment)))+
+  ggplot(aes(x=date, y=volume.mm3, color=treatment, fill=treatment, group=interaction(date, treatment)))+
   facet_wrap(~family, nrow=2)+
-  geom_boxplot()+
-  geom_point(position=position_dodge(0.75))+
-  geom_smooth(method="lm", aes(group=interaction(date, treatment)))+
+  #geom_boxplot()+
+  geom_point(position=position_jitterdodge(0.1), alpha=0.6)+
+  geom_smooth(method="loess", aes(group=treatment))+
   scale_color_manual(values=c("cyan3", "coral"))+
+  scale_fill_manual(values=c("cyan3", "coral"))+
   ylab("Volume (mm3)")+
   xlab("Date")+
-  theme_classic(); plot1
+  theme_classic()+
+  theme(axis.text.x=element_text(angle=45, vjust=0.5)); plot1
 
-ggsave(plot1, filename="figures/size/family_growth_rate.png", width=8, height=6)
+ggsave(plot1, filename="figures/size/family_growth_rate.png", width=10, height=6)
 ```
 
 Analyze growth to include date.
@@ -156,30 +155,75 @@ Run a model.
 
 ```{r}
 model<-data%>%
-  filter(!family=="YC24-099")%>%
+  #filter(!family=="YC24-099")%>%
   
   lmer(volume.mm3 ~ date * family * treatment + (1|tag) + (1|cage), data=.)
 
 summary(model)
-anova(model)
+anova(model, type=2)
 
 library(emmeans)
 
 emm <- emmeans(model, ~ date * family * treatment)
 pairs(emm, by = c("date", "family"), adjust = "tukey")
-
-plot(emm, comparisons = TRUE, adjust = "tukey")
 ```
 
-There are some interactive effects present between date x family x treatment. 
+There are some interactive effects present between date x family x treatment. But model is rank deficient. Will need to use date as a random effect. 
 
-Type III Analysis of Variance Table with Satterthwaite's method
+Type II Analysis of Variance Table with Satterthwaite's method
                           Sum Sq    Mean Sq NumDF   DenDF   F value    Pr(>F)    
-date                  4.4681e+10 4.4681e+10     1 1576.13 1877.1077 < 2.2e-16 ***
-family                1.3807e+09 1.7259e+08     8   15.65    7.2507 0.0004566 ***
-treatment             3.5061e+07 3.5061e+07     1    2.02    1.4730 0.3478276    
-date:family           5.0243e+09 6.2803e+08     8 1576.14   26.3846 < 2.2e-16 ***
-date:treatment        1.8740e+08 1.8740e+08     1 1576.13    7.8728 0.0050801 ** 
-family:treatment      3.5514e+08 4.4393e+07     8   15.65    1.8650 0.1389266    
-date:family:treatment 1.7635e+09 2.2043e+08     8 1576.14    9.2607 1.535e-12 ***
+date                  3.1608e+11 1.5804e+11     2 2316.44 1664.8444 < 2.2e-16 ***
+family                2.9556e+10 3.2840e+09     9   15.53   34.5955 1.223e-08 ***
+treatment             3.9198e+07 3.9198e+07     1    2.04    0.4129  0.585287    
+date:family           7.7006e+10 4.5298e+09    17 2308.71   47.7188 < 2.2e-16 ***
+date:treatment        9.4600e+07 4.7300e+07     2 2318.51    0.4983  0.607639    
+family:treatment      9.3156e+08 1.0351e+08     9   15.60    1.0904  0.421839    
+date:family:treatment 3.8675e+09 2.2750e+08    17 2306.77    2.3966  0.001093 ** 
+
+significant comparisons are: 
+
+date = 20260814, family = YC24-153:
+ contrast        estimate   SE    df t.ratio p.value
+ Control - High  -6376.72 2610  38.3  -2.442  0.0193
+ 
+date = 20260814, family = YC24-148:
+ contrast        estimate   SE    df t.ratio p.value
+ Control - High  -6956.10 3120  85.7  -2.230  0.0284
+ 
+date = 20250923, family = YC24-137:
+ contrast        estimate   SE    df t.ratio p.value
+ Control - High -10162.43 2890  64.2  -3.511  0.0008
+ 
+date = 20250923, family = YC24-105:
+ contrast        estimate   SE    df t.ratio p.value
+ Control - High  -6214.40 2820  57.5  -2.207  0.0313
+ 
+ 
+Run a model with date as a random effect. 
+
+```{r}
+model2<-data%>%
+  #filter(!family=="YC24-099")%>%
+  
+  lmer(volume.mm3 ~ family * treatment + (1|tag) + (1|cage) + (1|date), data=.)
+
+summary(model2)
+anova(model2, type=2)
+
+emm <- emmeans(model2, ~ family * treatment)
+pairs(emm, by = c("family"), adjust = "tukey")
+```
+
+Family only, no treatment effects. 
+
+Type II Analysis of Variance Table with Satterthwaite's method
+                     Sum Sq    Mean Sq NumDF   DenDF F value    Pr(>F)    
+family           3.4879e+10 3875460752     9 15.7707 30.3245 2.609e-08 ***
+treatment        2.7449e+07   27449000     1  2.0109  0.2148    0.6884    
+family:treatment 1.3733e+09  152588079     9 15.1283  1.1940    0.3652    
+
+Compare models
+```{r}
+aov(model, model2)
+```
 
