@@ -32,24 +32,31 @@ library(broom)
 library(cowplot)
 library(lme4)
 library(lmerTest)
+library(multcomp)
+library(emmeans)
+library(car)
+
+conflictRules("dplyr", mask.ok = list(select = TRUE))
 ```
 
 # Read in files 
 
 Read in files to be reformatted. 
 ```{r}
-#data<-read_csv("data/size/size_20260814.csv")%>%select(!site)%>%select(!image)%>%select(!notes)
-  
-#data<-data%>%pivot_wider(names_from="measurement", values_from="value.mm")
-
-#write_csv(data, file="data/size/size_20260814_alt.csv")
+#data<-read_csv("data/size/growth_draft.csv")%>%select(!site)%>%select(!image)%>%select(!notes)%>%select(!flag)
+#  
+#data<-data%>%pivot_wider(names_from="measurement", values_from="value")
+#
+#write_csv(data, file="data/size/size_alt.csv")
 ```
 
 Read in data 
 ```{r}
-data<-read_csv("data/size/growth.csv")%>%select(!notes)%>%select(!initials)
+data<-read_csv("data/size/growth.csv")%>%select(!initials)
 
-metadata<-read_xlsx("data/metadata/experiment_metadata.xlsx")
+data<-data%>%mutate(date=as.factor(date))
+
+metadata<-read_xlsx("data/metadata/experiment_metadata.xlsx")%>%select(!starting_oysters)%>%select(!`20260107_split`)%>%select(!`20260528_subsample_tag`)
 ```
 
 Join data together. 
@@ -74,6 +81,11 @@ data$volume.mm3 <- calc_oyster_volume(data$length.mm, data$width.mm)
 View data. 
 ```{r}
 hist(data$volume.mm3)
+
+data<-data%>%
+  filter(volume.mm3<125000)
+
+hist(data$volume.mm3)
 ```
 
 # Analyze size over time
@@ -84,20 +96,94 @@ data<-data%>%
   mutate(date=as.factor(date))
 ```
 
+Add days column
 ```{r}
-plot1<-data%>%
+data<-data%>%
+  mutate(days=if_else(date=="20250530", "0", 
+                      if_else(date=="20250923", "116", 
+                              if_else(date=="20260528", "363", 
+                                      if_else(date=="20260814", "441", NA)))))
+```
+
+
+```{r}
+plot1a<-data%>%
   
   ggplot(aes(x=date, y=volume.mm3, color=treatment))+
   facet_wrap(~tag, nrow=2)+
-  geom_boxplot()+
   geom_point(position=position_dodge(0.75))+
+  geom_smooth(aes(group=treatment))+
   scale_color_manual(values=c("cyan3", "coral"))+
   ylab("Volume (mm3)")+
-  xlab("Family")+
-  theme_classic(); plot1
+  xlab("Date")+
+  theme_classic()+
+  theme(axis.text.x=element_text(angle=45, hjust=1)); plot1a
+```
+
+```{r}
+plot1a<-data%>%
+  
+  ggplot(aes(x=as.numeric(days), y=volume.mm3, color=treatment))+
+  facet_wrap(~tag, nrow=2)+
+  geom_point(position=position_dodge(0.75))+
+  geom_smooth(aes(group=treatment))+
+  scale_color_manual(values=c("cyan3", "coral"))+
+  ylab("Volume (mm3)")+
+  xlab("Days")+
+  theme_classic()+
+  theme(axis.text.x=element_text(angle=45, hjust=1)); plot1a
+
+ggsave(plot1a, filename="figures/size/tag_size.png", width=18, height=7)
 ```
 
 We are missing photos of tags 76, 77, 78, and 79 (YC24-099) from the initial time point. 
+
+```{r}
+plot1a<-data%>%
+  
+  ggplot(aes(x=as.numeric(days), y=volume.mm3, color=treatment))+
+  facet_wrap(~family, nrow=2)+
+  geom_point(position=position_dodge(0.75))+
+  geom_smooth(aes(group=treatment), method="lm")+
+  scale_color_manual(values=c("cyan3", "coral"))+
+  scale_fill_manual(values=c("cyan3", "coral"))+
+  ylab("Volume (mm3)")+
+  xlab("Days")+
+  theme_classic()+
+  theme(axis.text.x=element_text(angle=45, hjust=1)); plot1a
+
+ggsave(plot1a, filename="figures/size/family_treatment_size.png", width=12, height=6)
+```
+
+```{r}
+plot1a<-data%>%
+  
+  ggplot(aes(x=as.factor(days), y=(volume.mm3), color=treatment))+
+  facet_wrap(~family, nrow=2)+
+  geom_boxplot(position=position_dodge(0.65))+
+  geom_point(position=position_jitterdodge(0.1))+
+  scale_color_manual(values=c("cyan3", "coral"))+
+  ylab("Volume (mm3)")+
+  xlab("Days")+
+  theme_classic()+
+  theme(axis.text.x=element_text(angle=45, hjust=1)); plot1a
+
+ggsave(plot1a, filename="figures/size/family_treatment_size_box.png", width=12, height=7)
+
+plot1a<-data%>%
+  
+  ggplot(aes(x=as.factor(days), y=(volume.mm3)^(1/4), color=treatment))+
+  facet_wrap(~family, nrow=2)+
+  geom_boxplot(position=position_dodge(0.65))+
+  geom_point(position=position_jitterdodge(0.1))+
+  scale_color_manual(values=c("cyan3", "coral"))+
+  ylab("Volume (mm3) ^ (1/4)")+
+  xlab("Days")+
+  theme_classic()+
+  theme(axis.text.x=element_text(angle=45, hjust=1)); plot1a
+
+ggsave(plot1a, filename="figures/size/family_treatment_size_box_transformed.png", width=12, height=7)
+```
 
 Look at only final size. 
 
@@ -105,49 +191,40 @@ Look at only final size.
 plot2<-data%>%
   filter(date=="20260814")%>%
   
-  ggplot(aes(x=family, y=volume.mm3, color=treatment))+
+  ggplot(aes(x=family, y=(volume.mm3), color=treatment))+
   geom_boxplot()+
-  geom_point(position=position_dodge(0.75))+
+  geom_point(position=position_jitterdodge(0.1))+
   scale_color_manual(values=c("cyan3", "coral"))+
   ylab("Volume (mm3)")+
   xlab("Family")+
-  theme_classic(); plot2
+  theme_classic()+
+  theme(axis.text.x=element_text(angle=45, hjust=1)); plot2
 
-ggsave(plot2, filename="figures/size/family_size.png", width=8, height=4)
+ggsave(plot2, filename="figures/size/final_size.png", width=8, height=6)
 ```
 
-Run a model. 
+# Analyze growth 
+
+Run a model on final size
 
 ```{r}
 model<-data%>%
   filter(date=="20260814")%>%
   
-  lmer(volume.mm3 ~ family * treatment + (1|tag) + (1|cage), data=.)
+  lmer((volume.mm3)^(1/4) ~ family * treatment + (1|tag) + (1|cage), data=.)
 
 anova(model)
+
+qqPlot(residuals(model))
 ```
 
 Family is significant, treatment effects are not significant.  
 
-# Analyze growth 
-
-```{r}
-plot1<-data%>%
-  
-  ggplot(aes(x=date, y=volume.mm3, color=treatment, fill=treatment, group=interaction(date, treatment)))+
-  facet_wrap(~family, nrow=2)+
-  #geom_boxplot()+
-  geom_point(position=position_jitterdodge(0.1), alpha=0.6)+
-  geom_smooth(method="loess", aes(group=treatment))+
-  scale_color_manual(values=c("cyan3", "coral"))+
-  scale_fill_manual(values=c("cyan3", "coral"))+
-  ylab("Volume (mm3)")+
-  xlab("Date")+
-  theme_classic()+
-  theme(axis.text.x=element_text(angle=45, vjust=0.5)); plot1
-
-ggsave(plot1, filename="figures/size/family_growth_rate.png", width=10, height=6)
-```
+Type III Analysis of Variance Table with Satterthwaite's method
+                  Sum Sq Mean Sq NumDF   DenDF F value    Pr(>F)    
+family           1186.13 131.792     9 12.0788 45.8437 5.809e-08 ***
+treatment           0.55   0.550     1  1.9671  0.1913    0.7052    
+family:treatment   15.61   1.734     9 12.0788  0.6033    0.7729   
 
 Analyze growth to include date.
 
@@ -155,75 +232,86 @@ Run a model.
 
 ```{r}
 model<-data%>%
-  #filter(!family=="YC24-099")%>%
   
-  lmer(volume.mm3 ~ date * family * treatment + (1|tag) + (1|cage), data=.)
+  lmer((volume.mm3)^(1/4) ~ as.factor(days) * family * treatment + (1|tag) + (1|cage), data=.)
 
 summary(model)
 anova(model, type=2)
 
-library(emmeans)
+emm <- emmeans(model, ~ as.factor(days) * family * treatment)
+pairs(emm, by = c("days", "family"), adjust = "tukey")
 
-emm <- emmeans(model, ~ date * family * treatment)
-pairs(emm, by = c("date", "family"), adjust = "tukey")
+qqPlot(residuals(model))
 ```
 
 There are some interactive effects present between date x family x treatment. But model is rank deficient. Will need to use date as a random effect. 
 
 Type II Analysis of Variance Table with Satterthwaite's method
-                          Sum Sq    Mean Sq NumDF   DenDF   F value    Pr(>F)    
-date                  3.1608e+11 1.5804e+11     2 2316.44 1664.8444 < 2.2e-16 ***
-family                2.9556e+10 3.2840e+09     9   15.53   34.5955 1.223e-08 ***
-treatment             3.9198e+07 3.9198e+07     1    2.04    0.4129  0.585287    
-date:family           7.7006e+10 4.5298e+09    17 2308.71   47.7188 < 2.2e-16 ***
-date:treatment        9.4600e+07 4.7300e+07     2 2318.51    0.4983  0.607639    
-family:treatment      9.3156e+08 1.0351e+08     9   15.60    1.0904  0.421839    
-date:family:treatment 3.8675e+09 2.2750e+08    17 2306.77    2.3966  0.001093 ** 
+                                  Sum Sq Mean Sq NumDF   DenDF   F value    Pr(>F)    
+as.factor(days)                  25246.4  8415.5     3 3045.25 3766.1173 < 2.2e-16 ***
+family                             560.2    62.2     9   15.68   27.8550 5.206e-08 ***
+treatment                            0.4     0.4     1    2.21    0.1672    0.7189    
+as.factor(days):family            1089.1    41.9    26 3044.29   18.7465 < 2.2e-16 ***
+as.factor(days):treatment            6.3     2.1     3 3046.30    0.9408    0.4200    
+family:treatment                    13.2     1.5     9   15.70    0.6586    0.7333    
+as.factor(days):family:treatment   153.9     5.9    26 3045.06    2.6488 1.142e-05 ***
 
-significant comparisons are: 
-
-date = 20260814, family = YC24-153:
- contrast        estimate   SE    df t.ratio p.value
- Control - High  -6376.72 2610  38.3  -2.442  0.0193
- 
-date = 20260814, family = YC24-148:
- contrast        estimate   SE    df t.ratio p.value
- Control - High  -6956.10 3120  85.7  -2.230  0.0284
- 
-date = 20250923, family = YC24-137:
- contrast        estimate   SE    df t.ratio p.value
- Control - High -10162.43 2890  64.2  -3.511  0.0008
- 
-date = 20250923, family = YC24-105:
- contrast        estimate   SE    df t.ratio p.value
- Control - High  -6214.40 2820  57.5  -2.207  0.0313
- 
- 
 Run a model with date as a random effect. 
 
 ```{r}
 model2<-data%>%
-  #filter(!family=="YC24-099")%>%
   
-  lmer(volume.mm3 ~ family * treatment + (1|tag) + (1|cage) + (1|date), data=.)
+  lmer((volume.mm3)^(1/4) ~ family * treatment + (1|tag) + (1|cage) + (1|date), data=.)
 
 summary(model2)
 anova(model2, type=2)
 
-emm <- emmeans(model2, ~ family * treatment)
-pairs(emm, by = c("family"), adjust = "tukey")
+qqPlot(residuals(model2))
 ```
 
 Family only, no treatment effects. 
 
 Type II Analysis of Variance Table with Satterthwaite's method
-                     Sum Sq    Mean Sq NumDF   DenDF F value    Pr(>F)    
-family           3.4879e+10 3875460752     9 15.7707 30.3245 2.609e-08 ***
-treatment        2.7449e+07   27449000     1  2.0109  0.2148    0.6884    
-family:treatment 1.3733e+09  152588079     9 15.1283  1.1940    0.3652    
+                 Sum Sq Mean Sq NumDF   DenDF F value    Pr(>F)    
+family           775.90  86.211     9 14.0930 33.1617 5.888e-08 ***
+treatment          0.20   0.202     1  2.1706  0.0776    0.8049    
+family:treatment  18.57   2.063     9 13.8639  0.7935    0.6281     
 
-Compare models
+Run not including the initial size. 
+
 ```{r}
-aov(model, model2)
+model2<-data%>%
+  filter(!date=="20250531")%>%
+  
+  lmer((volume.mm3)^(1/4) ~ family * treatment + (1|tag) + (1|cage) + (1|date), data=.)
+
+summary(model2)
+anova(model2, type=2)
+
+emm<-emmmultcompemm<-emmeans(model2, ~family)
+cld(emm)
+
+qqPlot(residuals(model2))
 ```
 
+Family only, no treatment effects. 
+
+Type II Analysis of Variance Table with Satterthwaite's method
+                 Sum Sq Mean Sq NumDF   DenDF F value    Pr(>F)    
+family           775.90  86.211     9 14.0930 33.1617 5.888e-08 ***
+treatment          0.20   0.202     1  2.1706  0.0776    0.8049    
+family:treatment  18.57   2.063     9 13.8639  0.7935    0.6281       
+
+Post hoc results are   
+
+ family   emmean   SE  df asymp.LCL asymp.UCL .group 
+ YC24-087   8.73 1.64 Inf      5.51      11.9  1     
+ YC24-163   8.89 1.64 Inf      5.67      12.1  12    
+ YC24-105   9.46 1.64 Inf      6.23      12.7   23   
+ YC24-164   9.75 1.64 Inf      6.53      13.0    34  
+ YC24-153  10.52 1.64 Inf      7.30      13.7      5 
+ YC24-099  10.53 1.65 Inf      7.30      13.8     45 
+ YC24-116  10.57 1.64 Inf      7.35      13.8      5 
+ YC24-148  10.87 1.64 Inf      7.64      14.1      56
+ YC24-137  11.06 1.64 Inf      7.83      14.3      56
+ YC24-158  11.37 1.64 Inf      8.15      14.6       6

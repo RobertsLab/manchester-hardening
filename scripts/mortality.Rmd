@@ -32,6 +32,7 @@ library(broom)
 library(cowplot)
 library(lme4)
 library(lmerTest)
+library(car)
 ```
 
 # Mortality assessments
@@ -39,17 +40,21 @@ library(lmerTest)
 ## Read in files 
 
 ```{r}
-data<-read_xlsx("data/mortality.xlsx")%>%select(!notes)
+data<-read_xlsx("data/mortality.xlsx")%>%select(!notes)%>%filter(!date=="20260107")
 
 metadata<-read_xlsx("data/metadata/experiment_metadata.xlsx")
 
-data<-left_join(data, metadata)
+data<-left_join(data, metadata)%>%select(!`20260107_split`)%>%select(!`20260528_subsample_tag`)
+ 
+data<-data%>%
+  mutate(live=as.numeric(live))%>%
+  mutate(date=as.factor(date))
 ```
 
 ## Calculate mortality 
 
 ```{r}
-data$mortality<-(data$dead/data$total)*100
+data$survival<-(data$live/data$starting_oysters)*100
 ```
 
 ## Plot mortality by treatment and family 
@@ -57,26 +62,26 @@ data$mortality<-(data$dead/data$total)*100
 ```{r}
 plot<-data%>%
   
-  ggplot(aes(x=family, y=mortality, color=treatment))+
-  geom_boxplot()+
+  ggplot(aes(x=family, y=survival, color=treatment))+
+  facet_wrap(~date)+
   geom_point(position=position_dodge(0.75))+
   scale_color_manual(values=c("blue", "red"))+
-  ylab("Mortality (%)")+
+  ylab("Survival (%)")+
   xlab("Family")+
   theme_classic(); plot
 
-ggsave(plot, filename="figures/mortality/family_mortality.png", width=8, height=4)
+ggsave(plot, filename="figures/mortality/family_mortality.png", width=8, height=8)
 ```
 
 ```{r}
 plot<-data%>%
   
-  ggplot(aes(x=treatment, y=mortality, color=treatment))+
-  geom_violin()+
+  ggplot(aes(x=date, y=survival, color=treatment))+
+  geom_boxplot()+
   geom_point(position=position_dodge(0.75))+
   scale_color_manual(values=c("blue", "red"))+
   ylab("Mortality (%)")+
-  xlab("Treatment")+
+  xlab("Date")+
   theme_classic(); plot
 
 ggsave(plot, filename="figures/mortality/treatment_mortality.png", width=4, height=4)
@@ -84,23 +89,33 @@ ggsave(plot, filename="figures/mortality/treatment_mortality.png", width=4, heig
 
 ## Run model 
 
-```{r}
-model<-data%>%
-  
-  aov(mortality~treatment*family, data=.)
-
-summary(model)
-```
-
-No significant effects. 
 
 ```{r}
 model2<-data%>%
   
-  lmer(mortality~treatment*family + (1|cage) + (1|tank), data=.)
+  lmer(survival~treatment*family*as.factor(date) + (1|cage) + (1|tank), data=.)
 
 anova(model2)
+
+qqPlot(residuals(model2))
+
+library(emmeans)
+emm<-emmeans(model2, ~treatment | family | date)
+pairs(emm)
 ```
 
+Plot only by family.  
 
+```{r}
+plot<-data%>%
+  
+  ggplot(aes(x=family, y=survival, color=family))+
+  facet_wrap(~date)+
+  geom_boxplot()+
+  geom_point(position=position_dodge(0.75))+
+  ylab("Survival (%)")+
+  xlab("Family")+
+  theme_classic(); plot
 
+ggsave(plot, filename="figures/mortality/family_only_mortality.png", width=8, height=8)
+```
