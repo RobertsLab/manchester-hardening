@@ -21,6 +21,7 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 ```
 
 ```{r}
+library(multcomp)
 library(tidyverse)
 library(stringr)
 library(readxl)
@@ -33,6 +34,7 @@ library(cowplot)
 library(lme4)
 library(lmerTest)
 library(car)
+library(emmeans)
 ```
 
 # Mortality assessments
@@ -89,19 +91,18 @@ ggsave(plot, filename="figures/mortality/treatment_mortality.png", width=4, heig
 
 ## Run model 
 
-
 ```{r}
 model2<-data%>%
   
-  lmer(survival~treatment*family*as.factor(date) + (1|cage) + (1|tank), data=.)
+  lmer(survival~treatment+family+as.factor(date)+treatment:as.factor(date)+family:as.factor(date)+ (1|cage) + (1|tank), data=.)
 
-anova(model2)
+anova(model2, type="II")
 
 qqPlot(residuals(model2))
 
-library(emmeans)
-emm<-emmeans(model2, ~treatment | family | date)
+emm<-emmeans(model2, ~family | date)
 pairs(emm)
+cld(emm)
 ```
 
 Plot only by family.  
